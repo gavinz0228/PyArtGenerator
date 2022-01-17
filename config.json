@@ -1,0 +1,22 @@
+{
+    "imageSetup":{
+        "width":900,
+        "height": 700
+    },
+    "layers":[
+        {
+            "name": "background",
+            "directory": "./assets/backgrounds",
+            "scaleMode": "full"
+        },
+        {
+            "name": "eyes",
+            "directory": "./assets/eyes",
+            "left": 230,
+            "top": 200,
+            "width": 200,
+            "height": 200,
+            "scaleMode": "none"
+        }
+    ]
+}
