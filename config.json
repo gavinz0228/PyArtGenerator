@@ -17,6 +17,15 @@
             "width": 200,
             "height": 200,
             "scaleMode": "none"
+        },
+        {
+            "name": "characters",
+            "directory": "./assets/characters",
+            "left": 200,
+            "top": 100,
+            "width": 500,
+            "height": 600,
+            "scaleMode": "none"
         }
     ]
 }

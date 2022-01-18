@@ -10,7 +10,7 @@ class PyArtGenerator:
     def __init__(self, config):
         self.config = config
     def createImage(self, width, height):
-        self.img = blank_image = np.zeros(shape=[width, height, 4], dtype=np.uint8)
+        self.img = blank_image = np.zeros(shape=[width, height, 3], dtype=np.uint8)
         return self.img
 
     def saveImage(self, file_name):
@@ -22,13 +22,7 @@ class PyArtGenerator:
             layerImgObj = []
             for f_path in os.listdir(layer["directory"]):
                 if any([ f_path.endswith(ex) for ex in PyArtGenerator.IMAGE_EXTENSION]):
-                    data = cv2.imread(os.path.join(layer["directory"], f_path))
-                    #create alpha channel
-                    if data.shape[2] == 3:
-                        b_channel, g_channel, r_channel = cv2.split(data)
-                        alpha_channel = np.ones(b_channel.shape, dtype=b_channel.dtype) * 255
-                        data = cv2.merge((b_channel, g_channel, r_channel, alpha_channel))
-
+                    data = cv2.imread(os.path.join(layer["directory"], f_path), cv2.IMREAD_UNCHANGED)
                     layerImgObj.append(data)
             self.imgObjs.append(layerImgObj)
         self.imgIndex = [0] * len(self.imgObjs)
@@ -54,12 +48,29 @@ class PyArtGenerator:
         if not os.path.isdir(PyArtGenerator.OUTPUT_DIR):
             os.mkdir(PyArtGenerator.OUTPUT_DIR)
 
+    def transparentOverlay(self, src , overlay , pos=(0,0), scale = 1):
+        overlay = cv2.resize(overlay,(0,0),fx=scale,fy=scale)
+        h,w,_ = overlay.shape  # Size of foreground
+        rows,cols,_ = src.shape  # Size of background Image
+        y,x = pos[0],pos[1]    # Position of foreground/overlay image
+        
+        #loop over all pixels and apply the blending equation
+        for i in range(h):
+            for j in range(w):
+                if x+i >= rows or y+j >= cols:
+                    continue
+                alpha = float(overlay[i][j][3]/255.0) # read the alpha channel 
+                src[x+i][y+j] = alpha*overlay[i][j][:3]+(1-alpha)*src[x+i][y+j]
+        return src
+    
+    def simpleOverlay(self, src, overlay , size, pos=(0,0)):
+        src[pos[0]:pos[0]+size[0], pos[1]:pos[1]+size[1],0:] = overlay
+
     def start(self):
         imageWidth = self.config["imageSetup"]["width"]
         imageHeight = self.config["imageSetup"]["height"]
         self.create_output_dir()
         all_images = self.loadImages()
-        
         i = 0
         
         curr_images = self.getNext()
@@ -77,8 +88,17 @@ class PyArtGenerator:
                 
                 w, h = layer_img.shape[1], layer_img.shape[0]
                 print(f"printing layer: {i} image: {j}, ({w}, {h}, {x}, {y})")
-                print(layer_img.shape, self.img.shape)
-                self.img[y:y+h, x:x+w,0:] = layer_img
+                #convert 2d grayscale img to 3d rgb
+                if len(layer_img.shape) == 2:
+                    layer_img = cv2.cvtColor(layer_img, cv2.COLOR_GRAY2BGR)
+
+                if layer_img.shape[2] == 3:
+                    #self.img[y:y+h, x:x+w,0:] = layer_img
+                    self.simpleOverlay(self.img, layer_img, (h, w,), (y, x,))
+                elif layer_img.shape[2] == 4:
+                    self.img = self.transparentOverlay(self.img, layer_img, (y,x), 1)
+
+
             #cv2.imshow("final", self.img)
             self.saveImage(f"{i}_{j}")
             curr_images = self.getNext()
